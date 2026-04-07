@@ -11,34 +11,35 @@
 class Flashmemory < Formula
   desc "Cross-language code analysis and semantic search system"
   homepage "https://github.com/ZetaZeroHub/FlashMemory"
-  version "0.1.1"
+  version "0.1.2"
   license "MIT"
 
   on_macos do
     on_intel do
       url "https://github.com/ZetaZeroHub/FlashMemory/releases/download/v#{version}/flashmemory_#{version}_darwin_amd64.tar.gz"
-      sha256 "7aff95b62fc2875f548db3952ec2efda708203912f5b9e2593afde4ca20034a8"
+      sha256 "78a8812a8202bf502f321400fb858e0f174b85f4bdb213cb81943f051c3c921a"
     end
     on_arm do
       url "https://github.com/ZetaZeroHub/FlashMemory/releases/download/v#{version}/flashmemory_#{version}_darwin_arm64.tar.gz"
-      sha256 "2324157a9ff405432309ff4115511c6ca984a04697ea76e586074a5e69f24249"
+      sha256 "7e8dcb756e2e79a64144319c4c7bfef5d2d81e68b453518281c739563edacfa3"
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/ZetaZeroHub/FlashMemory/releases/download/v#{version}/flashmemory_#{version}_linux_amd64.tar.gz"
-      sha256 "7a5dbedad063da6f039cd730063efc7a147ed7f4f9d36a37eb988e38a9ac6540"
+      sha256 "a12a22a9765d9b22f380590a0cb6385b0705fa568b5fec1d63456f1d83df2cec"
     end
     on_arm do
       url "https://github.com/ZetaZeroHub/FlashMemory/releases/download/v#{version}/flashmemory_#{version}_linux_arm64.tar.gz"
-      sha256 "16f602b5183fb5595062eef1e9a4702defb1433ea43161c4e5b3bd59773f9cab"
+      sha256 "6a76f677eb7f76c00bfbfc1e8b3e445b6d744b3b8d387c3509077765221afe2f"
     end
   end
 
   def install
-    bin.install "fm_http"
-    bin.install "fm"
+    # Execute binaries should go to libexec to avoid PATH conflicts when we write wrappers
+    libexec.install "fm_http"
+    libexec.install "fm"
 
     # Install FAISSService to libexec so it's available but not in PATH
     if File.directory?("FAISSService")
@@ -50,25 +51,20 @@ class Flashmemory < Formula
       (etc/"flashmemory").install "fm.yaml.example" => "fm.yaml"
     end
 
-    # Create wrapper scripts that set FAISS_SERVICE_PATH
-    (bin/"fm").unlink if File.exist?(bin/"fm")
-    (bin/"fm_http").unlink if File.exist?(bin/"fm_http")
-
-    # Re-install with wrapper
-    (bin/"fm_raw").write buildpath/"fm" if File.exist?(buildpath/"fm")
-    (bin/"fm_http_raw").write buildpath/"fm_http" if File.exist?(buildpath/"fm_http")
-
+    # Create wrapper scripts in `bin` that set FAISS_SERVICE_PATH before calling the real binaries
     (bin/"fm").write <<~EOS
       #!/bin/bash
       export FAISS_SERVICE_PATH="#{libexec}/FAISSService"
-      exec "#{bin}/fm_raw" "$@"
+      exec "#{libexec}/fm" "$@"
     EOS
+    (bin/"fm").chmod 0755
 
     (bin/"fm_http").write <<~EOS
       #!/bin/bash
       export FAISS_SERVICE_PATH="#{libexec}/FAISSService"
-      exec "#{bin}/fm_http_raw" "$@"
+      exec "#{libexec}/fm_http" "$@"
     EOS
+    (bin/"fm_http").chmod 0755
   end
 
   test do
